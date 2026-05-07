@@ -15,48 +15,6 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
-let currentUser = null; // Guardará el usuario que inició sesión
-
-// --- LOGICA DE AUTENTICACIÓN ---
-document.getElementById('btn-register').addEventListener('click', async () => {
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    
-    const response = await fetch('/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-    });
-    const data = await response.json();
-    
-    if (response.ok) {
-        alert('Registro exitoso. Ahora puedes iniciar sesión.');
-    } else {
-        alert(data.error);
-    }
-});
-
-document.getElementById('btn-login').addEventListener('click', async () => {
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    
-    const response = await fetch('/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-    });
-    const data = await response.json();
-    
-    if (response.ok) {
-        currentUser = data.username;
-        document.getElementById('auth-section').style.display = 'none';
-        document.getElementById('app-section').style.display = 'block';
-        document.getElementById('welcome-message').innerText = `¡Bienvenido, ${currentUser}!`;
-    } else {
-        alert(data.error);
-    }
-});
-
 // Lógica principal de registro y suscripción
 async function subscribeUser(username) {
     try {
@@ -66,15 +24,25 @@ async function subscribeUser(username) {
         });
         console.log('Service Worker registrado');
 
+        // Esperar a que el Service Worker esté activo y listo
+        const registration = await navigator.serviceWorker.ready;
+
+        // --- SOLUCIÓN: Limpiar suscripciones antiguas que causen conflicto ---
+        const existingSubscription = await registration.pushManager.getSubscription();
+        if (existingSubscription) {
+            await existingSubscription.unsubscribe();
+            console.log('Suscripción antigua eliminada para evitar conflictos.');
+        }
+
         // 2. Suscribirse a Push Notifications
-        const subscription = await register.pushManager.subscribe({
+        const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
         });
         console.log('Suscripción Push creada');
 
         // 3. Enviar la suscripción a nuestro backend Node.js
-        await fetch('/subscribe', {
+        await fetch('/api/subscribe', {
             method: 'POST',
             body: JSON.stringify({ subscription, username }), // Enviamos la suscripción Y el usuario
             headers: {
@@ -91,15 +59,16 @@ async function subscribeUser(username) {
 
 // Asignar el evento al botón para pedir usuario y suscribir
 document.getElementById('btn-subscribe').addEventListener('click', async () => {
-    if (!currentUser) {
-        alert("Debes iniciar sesión primero.");
+    const username = prompt("Por favor, introduce tu nombre de usuario (ej: alberto, maria):");
+    if (!username) {
+        alert("El nombre de usuario es necesario para suscribirse.");
         return;
     }
 
     // Pedir permiso explícito al usuario
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
-        subscribeUser(currentUser);
+        subscribeUser(username);
     } else {
         alert('Permiso de notificaciones denegado.');
     }
@@ -114,7 +83,7 @@ document.getElementById('btn-send-test').addEventListener('click', async () => {
     if (!body) return; // El usuario canceló
 
     try {
-        const response = await fetch('/send-notification', {
+        const response = await fetch('/api/send-notification', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
