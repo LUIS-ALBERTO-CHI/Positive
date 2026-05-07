@@ -1,5 +1,4 @@
 // api/vapid-public-key.js
-require('dotenv').config();
 
 export default function handler(req, res) {
     if (req.method !== 'GET') {

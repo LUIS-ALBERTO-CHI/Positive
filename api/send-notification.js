@@ -1,5 +1,4 @@
 // api/send-notification.js
-require('dotenv').config();
 const webpush = require('web-push');
 const { Pool } = require('pg');
 
