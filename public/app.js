@@ -1,8 +1,5 @@
 // app.js
 
-// IMPORTANTE: Pon la misma clave PÚBLICA que pusiste en server.js
-const publicVapidKey = 'BM9XbhYKTpbl8TL4S0CqEvKSSKtjTODu4SZctw7ShIJLMfpAB1Bp2l6XLjBhjHdtSpKIyRxJarq6ojcIKUS2ZFM';
-
 // Función para convertir la clave VAPID para que sea compatible con PushManager
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -13,6 +10,13 @@ function urlBase64ToUint8Array(base64String) {
     outputArray[i] = rawData.charCodeAt(i);
   }
   return outputArray;
+}
+
+// Obtenemos la clave pública de forma segura desde el servidor
+async function getPublicKey() {
+    const res = await fetch('/api/vapid-public-key');
+    const data = await res.json();
+    return data.publicKey;
 }
 
 // Lógica principal de registro y suscripción
@@ -35,6 +39,7 @@ async function subscribeUser(username) {
         }
 
         // 2. Suscribirse a Push Notifications
+        const publicVapidKey = await getPublicKey();
         const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
