@@ -39,6 +39,11 @@ pool.query(`
 }).then(() => console.log('✅ Tabla de suscripciones en Neon lista.'))
   .catch(err => console.error('❌ Error al configurar la tabla:', err));
 
+// Ruta de prueba para verificar que la API está viva en Vercel
+app.get('/api/ping', (req, res) => {
+    res.status(200).json({ message: '¡Pong! La API en Vercel está viva y respondiendo.' });
+});
+
 // Ruta para manejar la suscripción
 app.post('/api/subscribe', async (req, res) => {
     // Ahora esperamos un objeto con la suscripción y el nombre de usuario
