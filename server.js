@@ -5,6 +5,7 @@ const webpush = require('web-push');
 const bodyParser = require('body-parser');
 const path = require('path');
 const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 
@@ -27,7 +28,16 @@ const pool = new Pool({
     }
 });
 
-// Crear la tabla si no existe al iniciar el servidor
+// Crear las tablas si no existen al iniciar el servidor
+pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL
+    )
+`).then(() => console.log('✅ Tabla de usuarios en Neon lista.'))
+  .catch(err => console.error('❌ Error al crear tabla de usuarios:', err));
+
 pool.query(`
     CREATE TABLE IF NOT EXISTS subscriptions (
         id SERIAL PRIMARY KEY,
@@ -39,6 +49,43 @@ pool.query(`
     return pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS username TEXT;');
 }).then(() => console.log('✅ Tabla de suscripciones en Neon lista.'))
   .catch(err => console.error('❌ Error al configurar la tabla:', err));
+
+// --- RUTAS DE AUTENTICACIÓN ---
+app.post('/register', async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Faltan datos.' });
+
+    try {
+        // Encriptar la contraseña antes de guardarla (10 es el costo computacional)
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await pool.query('INSERT INTO users (username, password) VALUES ($1, $2)', [username, hashedPassword]);
+        res.status(201).json({ message: 'Usuario registrado exitosamente.' });
+    } catch (error) {
+        if (error.code === '23505') { // Código de error de PostgreSQL para "ya existe"
+            res.status(400).json({ error: 'El nombre de usuario ya existe.' });
+        } else {
+            res.status(500).json({ error: 'Error interno al registrar usuario.' });
+        }
+    }
+});
+
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Faltan datos.' });
+
+    try {
+        const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+        if (result.rows.length === 0) return res.status(401).json({ error: 'Usuario no encontrado.' });
+
+        const user = result.rows[0];
+        const isValid = await bcrypt.compare(password, user.password); // Comparar con el hash
+
+        if (!isValid) return res.status(401).json({ error: 'Contraseña incorrecta.' });
+        res.status(200).json({ message: 'Login exitoso.', username: user.username });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al iniciar sesión.' });
+    }
+});
 
 // Ruta para manejar la suscripción
 app.post('/subscribe', async (req, res) => {
@@ -124,5 +171,9 @@ app.post('/send-to-user', async (req, res) => {
     }
 });
 
-const PORT = 3000;
-app.listen(PORT, () => console.log(`Servidor iniciado en http://localhost:${PORT}`));
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = 3000;
+    app.listen(PORT, () => console.log(`Servidor iniciado en http://localhost:${PORT}`));
+}
+
+module.exports = app;
