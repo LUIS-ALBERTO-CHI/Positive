@@ -19,49 +19,34 @@ async function getPublicKey() {
     return publicKey;
 }
 
-// Lógica principal de registro y suscripción
+// app.js - remove getPublicKey() entirely, just use the constant
+const publicVapidKey = 'BM9XbhYKTpbl8TL4S0CqEvKSSKtjTODu4SZctw7ShIJLMfpAB1Bp2l6XLjBhjHdtSpKIyRxJarq6ojcIKUS2ZFM';
+
 async function subscribeUser(username) {
     try {
-        // 1. Registrar Service Worker
-        const register = await navigator.serviceWorker.register('/sw.js', {
-            scope: '/'
-        });
-        console.log('Service Worker registrado');
-
-        // Esperar a que el Service Worker esté activo y listo
+        const register = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
         const registration = await navigator.serviceWorker.ready;
 
-        // --- SOLUCIÓN: Limpiar suscripciones antiguas que causen conflicto ---
         const existingSubscription = await registration.pushManager.getSubscription();
-        if (existingSubscription) {
-            await existingSubscription.unsubscribe();
-            console.log('Suscripción antigua eliminada para evitar conflictos.');
-        }
+        if (existingSubscription) await existingSubscription.unsubscribe();
 
-        // 2. Suscribirse a Push Notifications
-        const publicVapidKey = await getPublicKey(); // ✅ Obtenido del servidor
+        // Use the key directly, no fetch needed
         const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
         });
-        console.log('Suscripción Push creada');
 
-        // 3. Enviar la suscripción a nuestro backend Node.js
         await fetch('/api/subscribe', {
             method: 'POST',
-            body: JSON.stringify({ subscription, username }), // Enviamos la suscripción Y el usuario
-            headers: {
-                'Content-Type': 'application/json'
-            }
+            body: JSON.stringify({ subscription, username }),
+            headers: { 'Content-Type': 'application/json' }
         });
-        console.log('Suscripción enviada al servidor');
-        alert(`¡Usuario '${username}' suscrito correctamente!`);
 
+        alert(`¡Usuario '${username}' suscrito correctamente!`);
     } catch (error) {
         console.error('Error al suscribir:', error);
     }
 }
-
 // Asignar el evento al botón para pedir usuario y suscribir
 document.getElementById('btn-subscribe').addEventListener('click', async () => {
     const username = prompt("Por favor, introduce tu nombre de usuario (ej: alberto, maria):");
