@@ -12,9 +12,9 @@ const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.json());
 
-// Reemplaza estas cadenas con las claves generadas en el paso anterior
-const publicVapidKey = 'BM9XbhYKTpbl8TL4S0CqEvKSSKtjTODu4SZctw7ShIJLMfpAB1Bp2l6XLjBhjHdtSpKIyRxJarq6ojcIKUS2ZFM';
-const privateVapidKey = 'cQ0uN1e8R-pofPx8AoxX0E7K2sHUU3RpW259zsaOKDs';
+// Obtenemos las claves desde las variables de entorno
+const publicVapidKey = process.env.VAPID_PUBLIC_KEY;
+const privateVapidKey = process.env.VAPID_PRIVATE_KEY;
 
 // Configuración de VAPID
 webpush.setVapidDetails('mailto:albchicasanova16@gmail.com', publicVapidKey, privateVapidKey);
@@ -42,6 +42,11 @@ pool.query(`
 // Ruta de prueba para verificar que la API está viva en Vercel
 app.get('/api/ping', (req, res) => {
     res.status(200).json({ message: '¡Pong! La API en Vercel está viva y respondiendo.' });
+});
+
+// Nueva ruta para servir la clave pública VAPID al frontend
+app.get('/api/vapid-public-key', (req, res) => {
+    res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
 });
 
 // Ruta para manejar la suscripción

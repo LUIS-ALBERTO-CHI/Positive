@@ -17,9 +17,8 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
     event.notification.close();
-    // Aquí puedes redirigir al usuario al hacer clic en la notificación
     event.waitUntil(
-        clients.openWindow('http://localhost:3000/')
+        clients.openWindow(self.location.origin + '/')  // ✅ uses actual domain
     );
 });
 
