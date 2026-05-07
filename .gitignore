@@ -3,3 +3,5 @@ node_modules/
 
 # Otros archivos comunes a ignorar
 .DS_Store
+.vercel
+.env*.local
