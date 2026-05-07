@@ -27,6 +27,13 @@ async function subscribeUser(username) {
         // Esperar a que el Service Worker esté activo y listo
         const registration = await navigator.serviceWorker.ready;
 
+        // --- SOLUCIÓN: Limpiar suscripciones antiguas que causen conflicto ---
+        const existingSubscription = await registration.pushManager.getSubscription();
+        if (existingSubscription) {
+            await existingSubscription.unsubscribe();
+            console.log('Suscripción antigua eliminada para evitar conflictos.');
+        }
+
         // 2. Suscribirse a Push Notifications
         const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
